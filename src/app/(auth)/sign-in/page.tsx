@@ -16,6 +16,7 @@ import { redirect } from "next/navigation";
 export const metadata: Metadata = {
   title: "Sign In",
 };
+
 const SignInPage = async (props: {
   searchParams: Promise<{
     callbackUrl: string;
