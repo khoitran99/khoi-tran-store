@@ -79,7 +79,6 @@ export const config = {
       if (token?.role) session.user.role = token.role as string; // Assert for role
       if (token?.name) session.user.name = token.name as string; // Assert for name
 
-      console.log("token: ", token);
       if (trigger === "update") {
         session.user.name = user.name;
       }
