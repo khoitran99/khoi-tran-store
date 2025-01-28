@@ -6,6 +6,12 @@ import { compareSync } from "bcrypt-ts-edge";
 import type { NextAuthConfig } from "next-auth";
 import { Session as AdapterSession, User as AdapterUser } from "next-auth"; // Adjust based on your setup.
 import type { JWT } from "next-auth/jwt";
+// Assuming you're using next-auth
+
+interface ExtendedUser extends AdapterUser {
+  role?: string; // Define the role property, making it optional
+}
+
 export const config = {
   pages: {
     signIn: "/auth/signin",
@@ -50,7 +56,7 @@ export const config = {
               id: user.id,
               name: user.name,
               email: user.email,
-              image: user.image,
+              role: user.role,
             };
         }
         return null;
@@ -64,16 +70,39 @@ export const config = {
       trigger,
       token,
     }: {
-      session: AdapterSession & { user: AdapterUser; id?: string }; // Extend AdapterSession to include user id
-      user: AdapterUser;
+      session: AdapterSession & { user: ExtendedUser; id?: string }; // Extend AdapterSession to include user id
+      user: ExtendedUser;
       trigger?: string; // trigger is optional
       token?: JWT; // token is optional
     }) {
-      if (token?.sub) session.user.id = token.sub;
+      if (token?.sub) session.user.id = token.sub as string; // Assert that token.sub is a string
+      if (token?.role) session.user.role = token.role as string; // Assert for role
+      if (token?.name) session.user.name = token.name as string; // Assert for name
+
+      console.log("token: ", token);
       if (trigger === "update") {
         session.user.name = user.name;
       }
       return session;
+    },
+    async jwt({ token, user }: { token: JWT; user: ExtendedUser }) {
+      if (user) {
+        token.role = user.role;
+        // If user has no name then use the email
+        if (user.name === "NO_NAME") {
+          token.name = user.email!.split("@")[0];
+          // Update db to reflect token name
+          await prisma.user.update({
+            where: {
+              id: user.id,
+            },
+            data: {
+              name: token.name,
+            },
+          });
+        }
+      }
+      return token;
     },
   },
 } satisfies NextAuthConfig;
