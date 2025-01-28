@@ -4,7 +4,8 @@ import { prisma } from "@/db/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compareSync } from "bcrypt-ts-edge";
 import type { NextAuthConfig } from "next-auth";
-
+import { Session as AdapterSession, User as AdapterUser } from "next-auth"; // Adjust based on your setup.
+import type { JWT } from "next-auth/jwt";
 export const config = {
   pages: {
     signIn: "/auth/signin",
@@ -57,8 +58,18 @@ export const config = {
     }),
   ],
   callbacks: {
-    async session({ session, user, trigger, token }: any) {
-      session.user.id = token.sub;
+    async session({
+      session,
+      user,
+      trigger,
+      token,
+    }: {
+      session: AdapterSession & { user: AdapterUser; id?: string }; // Extend AdapterSession to include user id
+      user: AdapterUser;
+      trigger?: string; // trigger is optional
+      token?: JWT; // token is optional
+    }) {
+      if (token?.sub) session.user.id = token.sub;
       if (trigger === "update") {
         session.user.name = user.name;
       }
