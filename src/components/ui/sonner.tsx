@@ -13,8 +13,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       toastOptions={{
+        duration: 3000,
         classNames: {
-          error: "group-[.toast]:bg-red-500 group-[.toast]:text-white",
+          error: "!bg-red-400 !text-white",
           toast:
             "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
           description: "group-[.toast]:text-muted-foreground",

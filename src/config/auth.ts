@@ -6,6 +6,8 @@ import { compareSync } from "bcrypt-ts-edge";
 import type { NextAuthConfig } from "next-auth";
 import { Session as AdapterSession, User as AdapterUser } from "next-auth"; // Adjust based on your setup.
 import type { JWT } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
+
 // Assuming you're using next-auth
 
 interface ExtendedUser extends AdapterUser {
@@ -102,6 +104,26 @@ export const config = {
         }
       }
       return token;
+    },
+    authorized({ request }: { request: NextRequest }) {
+      // Check for the session cart cookie
+      if (!request.cookies.get("sessionCartId")) {
+        // Generate new session cart id cookie
+        const sessionCartId = crypto.randomUUID();
+
+        // Clone cookie header
+        const newRequestHeaders = new Headers(request.headers);
+
+        // Create new response and add the new headers
+        const response = NextResponse.next({
+          headers: newRequestHeaders,
+        });
+
+        // Add new key-value in cookie
+        response.cookies.set("sessionCartId", sessionCartId);
+        return response;
+      }
+      return true;
     },
   },
 } satisfies NextAuthConfig;
