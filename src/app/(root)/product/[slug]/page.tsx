@@ -6,6 +6,34 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getMyCart } from "@/lib/actions/cart.action";
 import { getProductBySlug } from "@/lib/actions/product.actions";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
+
+// This function only runs on the server at build time or on-demand
+// (if using dynamic routes with revalidate).
+export async function generateMetadata(props: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  // Fetch the product using your slug
+  const { slug } = await props.params;
+
+  const product = await getProductBySlug(slug);
+
+  // If no product found, you could handle it by returning a fallback title or throwing notFound()
+  if (!product) {
+    return {
+      title: "Product Not Found",
+    };
+  }
+
+  // Return metadata object with dynamic title
+  return {
+    title: product.name ? product.name + " | E-Commerce" : "Product Detail",
+    // You can add more fields dynamically if desired:
+    // description: product?.description?.slice(0, 160),
+    // openGraph: { ... },
+    // ...
+  };
+}
 
 const ProductDetailPage = async (props: {
   params: Promise<{ slug: string }>;
@@ -74,6 +102,7 @@ const ProductDetailPage = async (props: {
                     name: product.name,
                     productId: product.id,
                     quantity: 1,
+                    image: product.images[0],
                   }}
                 />
               )}
