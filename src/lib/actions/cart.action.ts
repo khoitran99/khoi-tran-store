@@ -28,17 +28,14 @@ export async function addItemToCart(data: CartItem) {
   try {
     const sessionCartId = (await cookies()).get("sessionCartId")?.value;
     if (!sessionCartId) throw new Error("Cart session not found");
-    // Get session and user id
+
     const session = await auth();
     const userId = session?.user?.id ?? undefined;
 
-    // Get cart
     const cart = await getMyCart();
 
-    // Parse item
     const item = cartItemSchema.parse(data);
 
-    // Find product in db
     const product = await prisma.product.findUnique({
       where: {
         id: item.productId,
@@ -54,12 +51,10 @@ export async function addItemToCart(data: CartItem) {
         ...calculateCartPrice([item]),
       });
 
-      // Add cart to db
       await prisma.cart.create({
         data: newCart,
       });
 
-      // Revalidate path cache
       revalidatePath(`/product/${product.slug}`);
 
       return {
@@ -67,30 +62,33 @@ export async function addItemToCart(data: CartItem) {
         message: `${product.name} is added to cart successfully`,
       };
     } else {
-      // Find existing item
+      /*
+      Find existing item to:
+      - Existed: add quantity
+      - Non-existed: push new item
+      */
       const existingIndex = (cart.items as CartItem[]).findIndex(
         (cartItem) => cartItem.productId === item.productId
       );
 
+      // - Existed: add quantity
       if (existingIndex !== -1) {
-        // Check if enough stock
         if (product.stock < cart.items[existingIndex].quantity + 1)
           throw new Error(`${product.name} does not have enough stock.`);
 
-        // Add quantity
         cart.items[existingIndex] = {
           ...cart.items[existingIndex],
           quantity: cart.items[existingIndex].quantity + 1,
         };
       } else {
-        // Check if enough stock
+        // - Non-existed: push new item
         if (product.stock < 1)
           throw new Error(`${product.name} does not have enough stock.`);
 
-        // Add new cart item
         cart.items.push(item);
       }
-      // Save to database
+
+      // Update data in cart and recalculate price
       await prisma.cart.update({
         where: { id: cart.id },
         data: {
@@ -99,7 +97,6 @@ export async function addItemToCart(data: CartItem) {
         },
       });
 
-      // Revalidate path cache
       revalidatePath(`/product/${product.slug}`);
 
       return {
@@ -121,7 +118,6 @@ export async function getMyCart() {
   const sessionCartId = (await cookies()).get("sessionCartId")?.value;
   if (!sessionCartId) throw new Error("Cart session not found");
 
-  // Get session and user id
   const session = await auth();
   const userId = session?.user?.id ? (session.user.id as string) : undefined;
 
@@ -130,7 +126,6 @@ export async function getMyCart() {
   });
   if (!cart) return undefined;
 
-  // Convert decimals and return
   return convertToPlainObject({
     ...cart,
     items: cart.items as CartItem[],
@@ -146,11 +141,10 @@ export async function removeItemFromCart(productId: string) {
     const sessionCartId = (await cookies()).get("sessionCartId")?.value;
     if (!sessionCartId) throw new Error("Cart session not found");
     let message = "";
-    // Get cart
+
     const cart = await getMyCart();
     if (!cart) throw new Error("Cart not found");
 
-    // Find product in db
     const product = await prisma.product.findUnique({
       where: {
         id: productId,
@@ -158,7 +152,6 @@ export async function removeItemFromCart(productId: string) {
     });
     if (!product) throw new Error("Product not found");
 
-    // Find existing item
     const existingIndex = (cart.items as CartItem[]).findIndex(
       (cartItem) => cartItem.productId === productId
     );
@@ -166,12 +159,19 @@ export async function removeItemFromCart(productId: string) {
     if (existingIndex === -1)
       throw new Error(`${product.name} is not in cart.`);
 
+    /*
+      Check cart item quantity
+      - Equal to 1: remove
+      - Greater than 1: subtract 1 unit
+      */
     if (cart.items[existingIndex].quantity === 1) {
+      // - Equal to 1: remove
       cart.items = cart.items.filter(
         (cartItem) => cartItem.productId !== productId
       );
       message = `${product.name} is removed from cart successfully.`;
     } else {
+      // - Greater than 1: subtract 1 unit
       cart.items[existingIndex] = {
         ...cart.items[existingIndex],
         quantity: cart.items[existingIndex].quantity - 1,
@@ -179,7 +179,7 @@ export async function removeItemFromCart(productId: string) {
       message = `${product.name} is updated in cart successfully.`;
     }
 
-    // Save to database
+    // Update data in cart and recalculate price
     await prisma.cart.update({
       where: { id: cart.id },
       data: {

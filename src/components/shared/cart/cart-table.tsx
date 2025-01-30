@@ -30,12 +30,7 @@ const CartTable = ({ cart }: { cart?: Cart }) => {
       if (!res.success) {
         toast.error(res.message);
       } else {
-        toast.success(res.message, {
-          action: {
-            label: "Go to cart",
-            onClick: () => router.push("/cart"),
-          },
-        });
+        toast.success(res.message);
       }
     });
   };
@@ -46,12 +41,7 @@ const CartTable = ({ cart }: { cart?: Cart }) => {
       if (!res.success) {
         toast.error(res.message);
       } else {
-        toast.success(res.message, {
-          action: {
-            label: "Go to cart",
-            onClick: () => router.push("/cart"),
-          },
-        });
+        toast.success(res.message);
       }
     });
   };

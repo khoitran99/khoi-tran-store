@@ -21,3 +21,19 @@ export const signUpDefaultValues = {
   password: "",
   confirmPassword: "",
 };
+
+// export const shippingAddressDefaultValues = {
+//   fullName: "Khoi Tran",
+//   streetAddress: "Cau Dien, Hanoi, Vietnam",
+//   city: "Hanoi",
+//   postalCode: "100000",
+//   country: "Vietnam",
+// };
+
+export const shippingAddressDefaultValues = {
+  fullName: "",
+  streetAddress: "",
+  city: "",
+  postalCode: "",
+  country: "",
+};

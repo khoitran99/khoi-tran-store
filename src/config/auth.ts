@@ -3,10 +3,11 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/db/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compareSync } from "bcrypt-ts-edge";
-import type { NextAuthConfig } from "next-auth";
+import type { NextAuthConfig, Session } from "next-auth";
 import { Session as AdapterSession, User as AdapterUser } from "next-auth"; // Adjust based on your setup.
 import type { JWT } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 // Assuming you're using next-auth
 
@@ -16,8 +17,8 @@ interface ExtendedUser extends AdapterUser {
 
 export const config = {
   pages: {
-    signIn: "/auth/signin",
-    error: "/auth/signin",
+    signIn: "/sign-in",
+    error: "/sign-in",
   },
   session: {
     strategy: "jwt",
@@ -86,8 +87,17 @@ export const config = {
       }
       return session;
     },
-    async jwt({ token, user }: { token: JWT; user: ExtendedUser }) {
+    async jwt({
+      token,
+      user,
+      trigger,
+    }: {
+      token: JWT;
+      user: ExtendedUser;
+      trigger?: string;
+    }) {
       if (user) {
+        token.id = user.id;
         token.role = user.role;
         // If user has no name then use the email
         if (user.name === "NO_NAME") {
@@ -102,10 +112,63 @@ export const config = {
             },
           });
         }
+
+        // Add items cart to user when user is authenticated
+        if (trigger === "signIn" || trigger === "signUp") {
+          const cookiesObj = await cookies();
+          const sessionCartId = cookiesObj.get("sessionCartId")?.value;
+
+          if (sessionCartId) {
+            const sessionCart = await prisma.cart.findFirst({
+              where: {
+                sessionCartId,
+              },
+            });
+            if (sessionCart) {
+              await prisma.cart.deleteMany({
+                where: {
+                  userId: user.id,
+                  NOT: {
+                    id: sessionCart.id,
+                  },
+                },
+              });
+
+              // Assign new cart
+              await prisma.cart.update({
+                where: { id: sessionCart.id },
+                data: { userId: user.id },
+              });
+            }
+          }
+        }
       }
       return token;
     },
-    authorized({ request }: { request: NextRequest }) {
+    authorized({
+      request,
+      auth,
+    }: {
+      request: NextRequest;
+      auth: Session | null;
+    }) {
+      // Array of regex patterns of paths we want to protect
+      const protectedPaths = [
+        /\/shipping-address/,
+        /\/payment-method/,
+        /\/place-order/,
+        /\/profile/,
+        /\/user\/(.*)/,
+        /\/order\/(.*)/,
+        /\/admin/,
+      ];
+
+      const { pathname } = request.nextUrl;
+
+      // Check if user is not authenticated and accessing a protected route
+      if (!auth && protectedPaths.some((path) => path.test(pathname)))
+        return false;
+
       // Check for the session cart cookie
       if (!request.cookies.get("sessionCartId")) {
         // Generate new session cart id cookie
