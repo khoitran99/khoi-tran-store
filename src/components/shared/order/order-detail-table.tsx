@@ -1,13 +1,7 @@
-import CheckoutSteps from "@/components/shared/checkout/checkout-steps";
-import { auth } from "@/config/auth";
-import { getMyCart } from "@/lib/actions/cart.action";
-import { getUserById } from "@/lib/actions/user.action";
-import { ShippingAddress } from "@/types";
-import { redirect } from "next/navigation";
-import { Metadata } from "next";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { Order } from "@/types";
 import {
   Table,
   TableBody,
@@ -17,57 +11,57 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency } from "@/lib/utils";
 import Image from "next/image";
-import PlaceOrderButton from "@/components/shared/order/place-order-form";
+import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "Place Order",
-};
-const PlaceOrderPage = async () => {
-  const cart = await getMyCart();
-  if (!cart || cart.items.length === 0) redirect("/cart");
-
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) throw new Error("No user id");
-  const user = await getUserById(userId);
-  if (!user.paymentMethod) redirect("/payment-method");
-  if (!user.address) redirect("shipping-address");
-
-  const address = user.address as ShippingAddress;
-
+const OrderDetailTable = ({ order }: { order: Order }) => {
+  const {
+    shippingAddress,
+    orderItem,
+    itemsPrice,
+    shippingPrice,
+    taxPrice,
+    totalPrice,
+    paymentMethod,
+    isPaid,
+    paidAt,
+    deliveredAt,
+    isDelivered,
+  } = order;
   return (
     <>
-      <CheckoutSteps current={3} />
-      <h1 className="py-4 text-2xl font-semibold">Place Order</h1>
+      <h1 className="py-4 text-2xl">#{order.id}</h1>
       <div className="grid md:grid-cols-3 md:gap-5">
-        <div className="md:col-span-2 overflow-x-auto space-y-4">
+        <div className="col-span-2 space-y-4 overflow-x-auto">
           <Card>
             <CardContent className="p-4 gap-4">
-              <h2 className="text-xl pb-4">Shipping Address</h2>
-              <p className="">{address.fullName}</p>
-              <p>
-                {address.streetAddress}, {address.city}, {address.postalCode},{" "}
-                {address.country}
-              </p>
-              <div className="mt-4">
-                <Link href={"/shipping-address"}>
-                  <Button variant={"outline"}>Edit</Button>
-                </Link>
-              </div>
+              <h2 className="text-xl pb-4">Payment Method</h2>
+              <p className="pb-2">{paymentMethod}</p>
+              {isPaid ? (
+                <Badge variant={"secondary"}>
+                  Paid at {formatDateTime(paidAt!).dateTime}
+                </Badge>
+              ) : (
+                <Badge variant={"destructive"}>Not paid</Badge>
+              )}
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 gap-4">
-              <h2 className="text-xl pb-4">Payment Method</h2>
-              <p className="">{user.paymentMethod}</p>
+              <h2 className="text-xl pb-4">Shipping Address</h2>
+              <p>{shippingAddress.fullName}</p>
+              <p className="pb-2">
+                {shippingAddress.streetAddress}, {shippingAddress.city},{" "}
+                {shippingAddress.postalCode}, {shippingAddress.country}
+              </p>
 
-              <div className="mt-4">
-                <Link href={"/payment-method"}>
-                  <Button variant={"outline"}>Edit</Button>
-                </Link>
-              </div>
+              {isDelivered ? (
+                <Badge variant={"secondary"}>
+                  Delivered at {formatDateTime(deliveredAt!).dateTime}
+                </Badge>
+              ) : (
+                <Badge variant={"destructive"}>Not delivered</Badge>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -83,7 +77,7 @@ const PlaceOrderPage = async () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cart.items.map((item) => (
+                  {orderItem.map((item) => (
                     <TableRow key={item.slug}>
                       <TableCell>
                         <Link
@@ -117,24 +111,21 @@ const PlaceOrderPage = async () => {
             <CardContent className="p-4 gap-4 space-y-4">
               <div className="flex justify-between items-center">
                 <p>Items</p>
-                <p className="font-bold">{formatCurrency(cart.itemsPrice)}</p>
+                <p className="font-bold">{formatCurrency(itemsPrice)}</p>
               </div>
               <div className="flex justify-between items-center">
                 <p>Shipping</p>
-                <p className="font-bold">
-                  {formatCurrency(cart.shippingPrice)}
-                </p>
+                <p className="font-bold">{formatCurrency(shippingPrice)}</p>
               </div>
               <div className="flex justify-between items-center">
                 <p>Tax</p>
-                <p className="font-bold">{formatCurrency(cart.taxPrice)}</p>
+                <p className="font-bold">{formatCurrency(taxPrice)}</p>
               </div>
               <hr />
               <div className="flex justify-between items-center">
                 <p>Total</p>
-                <p className="font-bold">{formatCurrency(cart.totalPrice)}</p>
+                <p className="font-bold">{formatCurrency(totalPrice)}</p>
               </div>
-              <PlaceOrderButton />
             </CardContent>
           </Card>
         </div>
@@ -143,4 +134,4 @@ const PlaceOrderPage = async () => {
   );
 };
 
-export default PlaceOrderPage;
+export default OrderDetailTable;

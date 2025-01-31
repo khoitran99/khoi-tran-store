@@ -1,7 +1,7 @@
 "use server";
 import { auth } from "@/config/auth";
 import { getMyCart } from "./cart.action";
-import { formatError } from "../utils";
+import { convertToPlainObject, formatError } from "../utils";
 import { getUserById } from "./user.action";
 import { insertOrderSchema } from "../validators";
 import { prisma } from "@/db/prisma";
@@ -96,4 +96,23 @@ export async function createOrder() {
       message: formatError(error),
     };
   }
+}
+
+export async function getOrderByIdAndUserId(orderId: string, userId: string) {
+  const data = await prisma.order.findUnique({
+    where: {
+      id: orderId,
+      userId: userId,
+    },
+    include: {
+      orderItem: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+  return convertToPlainObject(data);
 }
