@@ -5,7 +5,11 @@ import { getMyCart } from "@/lib/actions/cart.action";
 import { getUserById } from "@/lib/actions/user.action";
 import { ShippingAddress } from "@/types";
 import { redirect } from "next/navigation";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+  title: "Shipping Address",
+};
 const ShippingAddressPage = async () => {
   const cart = await getMyCart();
   if (!cart || cart.items.length === 0) redirect("/cart");
