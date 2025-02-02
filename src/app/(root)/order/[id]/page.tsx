@@ -25,6 +25,8 @@ const OrderDetailPage = async (props: { params: Promise<{ id: string }> }) => {
   return (
     <>
       <OrderDetailTable
+        userId={user.id}
+        paypalClientId={process.env.PAYPAL_CLIENT_ID || "sb"}
         order={{
           ...orderDetail,
           shippingAddress: orderDetail.shippingAddress as ShippingAddress,

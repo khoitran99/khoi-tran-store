@@ -12,6 +12,7 @@ import { prisma } from "@/db/prisma";
 import { hashSync } from "bcrypt-ts-edge";
 import { formatError } from "../utils";
 import { PaymentMethod, ShippingAddress } from "@/types";
+import { DEFAULT_PAGE_SIZE } from "../constants";
 
 // Sign in the user with credentials
 export async function signInWithCredentials(
@@ -135,6 +136,51 @@ export async function updatePaymentMethod(data: PaymentMethod) {
     return {
       success: true,
       message: "User's payment method is updated successfully.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatError(error),
+    };
+  }
+}
+
+export async function getMyOrders({
+  page,
+  size = DEFAULT_PAGE_SIZE,
+}: {
+  page: number;
+  size?: number;
+}) {
+  try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("No user id");
+
+    const myOrders = await prisma.order.findMany({
+      where: {
+        userId: userId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: size,
+      skip: (page - 1) * size,
+    });
+
+    const totalOrders = await prisma.order.count({
+      where: { userId: userId },
+    });
+
+    return {
+      success: true,
+      data: {
+        data: myOrders,
+        page: page,
+        size: size,
+        total: totalOrders,
+        numPages: Math.ceil(totalOrders / size),
+      },
     };
   } catch (error) {
     return {
