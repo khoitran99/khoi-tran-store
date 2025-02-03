@@ -6,6 +6,7 @@ import {
   shippingAddressSchema,
   signInFormSchema,
   signUpFormSchema,
+  updateProfileSchema,
 } from "../validators";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { prisma } from "@/db/prisma";
@@ -181,6 +182,44 @@ export async function getMyOrders({
         total: totalOrders,
         numPages: Math.ceil(totalOrders / size),
       },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatError(error),
+    };
+  }
+}
+
+// Update user address
+export async function updateMyProfile({
+  name,
+  email,
+}: {
+  name: string;
+  email: string;
+}) {
+  try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("No user id");
+
+    const foundUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!foundUser) throw new Error("User not found!");
+
+    const updateProfileData = updateProfileSchema.parse({ name, email });
+    await prisma.user.update({
+      where: { id: foundUser.id },
+      data: {
+        name: updateProfileData.name,
+        email: updateProfileData.email,
+      },
+    });
+    return {
+      success: true,
+      message: "User's profile is updated successfully",
     };
   } catch (error) {
     return {
