@@ -68,16 +68,23 @@ export const config = {
   ],
   callbacks: {
     async session({
-      session,
+      token,
       user,
       trigger,
-      token,
+      session,
     }: {
       session: AdapterSession & { user: ExtendedUser; id?: string }; // Extend AdapterSession to include user id
       user: ExtendedUser;
       trigger?: string; // trigger is optional
       token?: JWT; // token is optional
     }) {
+      console.log("tri", trigger);
+      console.log("user: ", user);
+      console.log("session ", session);
+      console.log("trigger ", trigger);
+      if (trigger === "update") {
+        session.user.name = user.name; // Modify session here
+      }
       if (token?.sub) session.user.id = token.sub as string; // Assert that token.sub is a string
       if (token?.role) session.user.role = token.role as string; // Assert for role
       if (token?.name) session.user.name = token.name as string; // Assert for name
@@ -91,7 +98,9 @@ export const config = {
       token,
       user,
       trigger,
+      session,
     }: {
+      session?: AdapterSession & { user: ExtendedUser; id?: string }; // Extend AdapterSession to include user id
       token: JWT;
       user: ExtendedUser;
       trigger?: string;
@@ -113,8 +122,8 @@ export const config = {
           });
         }
 
-        // Add items cart to user when user is authenticated
         if (trigger === "signIn" || trigger === "signUp") {
+          // Add items cart to user when user is authenticated
           const cookiesObj = await cookies();
           const sessionCartId = cookiesObj.get("sessionCartId")?.value;
 
@@ -143,6 +152,12 @@ export const config = {
           }
         }
       }
+
+      if (session?.user.name && trigger === "update") {
+        console.log("session.user.name: ", session.user.name);
+        token.name = session.user.name;
+      }
+
       return token;
     },
     authorized({
