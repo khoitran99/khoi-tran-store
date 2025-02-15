@@ -6,8 +6,9 @@ import { getUserById } from "./user.action";
 import { insertOrderSchema } from "../validators";
 import { prisma } from "@/db/prisma";
 import { paypal } from "../paypal";
-import { PaymentResult } from "@/types";
+import { PaymentResult, SalesDataType } from "@/types";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 
 export async function createOrder() {
   try {
@@ -263,4 +264,64 @@ export async function updateOrderToPaid({
   });
   if (!updatedOrder) throw new Error("Updated order failed.");
   return updatedOrder;
+}
+
+// Get sales data and order summary
+export async function getOrderSummary() {
+  try {
+    // Fetch aggregated data in parallel for efficiency
+    const [
+      ordersCount,
+      productsCount,
+      usersCount,
+      totalSales,
+      salesDataRaw,
+      latestSales,
+    ] = await Promise.all([
+      prisma.order.count(),
+      prisma.product.count(),
+      prisma.user.count(),
+      prisma.order.aggregate({ _sum: { totalPrice: true } }),
+      prisma.$queryRaw<Array<{ month: string; totalSales: Prisma.Decimal }>>`
+          SELECT to_char("createdAt", 'MM/YY') as "month", sum("totalPrice") as "totalSales"
+          FROM "Order"
+          GROUP BY to_char("createdAt",'MM/YY')
+        `,
+      prisma.order.findMany({
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          totalPrice: true,
+          createdAt: true,
+          user: {
+            select: { name: true },
+          },
+        },
+        take: 6,
+      }),
+    ]);
+
+    // Map sales data to the correct type
+    const salesData: SalesDataType = salesDataRaw.map(
+      ({ month, totalSales }) => ({
+        month,
+        totalSales: Number(totalSales),
+      })
+    );
+
+    return {
+      success: true,
+      ordersCount,
+      productsCount,
+      usersCount,
+      totalSales: totalSales._sum.totalPrice || 0, // Ensure totalSales is always a number
+      salesData,
+      latestSales,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatError(error),
+    };
+  }
 }
