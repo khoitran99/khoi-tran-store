@@ -22,17 +22,24 @@ import {
 import {
   approvePaypalOrder,
   createPaypalOrder,
+  updateOrderToDelivered,
+  updateOrderToPaidCOD,
 } from "@/lib/actions/order.action";
 import { toast } from "sonner";
+import { useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { BadgeDollarSignIcon, Loader, TruckIcon } from "lucide-react";
 
 const OrderDetailTable = ({
   order,
   userId,
   paypalClientId,
+  isAdmin,
 }: {
   order: Order;
   userId: string;
   paypalClientId: string;
+  isAdmin?: boolean;
 }) => {
   const {
     shippingAddress,
@@ -74,6 +81,71 @@ const OrderDetailTable = ({
       toast.success(res.message);
     }
   };
+
+  const MarkAsPaidButton = () => {
+    const [isPending, startTransition] = useTransition();
+    return (
+      <Button
+        className="w-full"
+        type="button"
+        disabled={isPending}
+        onClick={() =>
+          startTransition(async () => {
+            const res = await updateOrderToPaidCOD({
+              orderId: order.id,
+              userId: userId,
+            });
+            if (!res.success) {
+              toast.error(res.message);
+            } else {
+              toast.success(res.message);
+            }
+          })
+        }
+      >
+        {isPending ? (
+          <Loader className="animate-spin" />
+        ) : (
+          <div className="flex items-center justify-center gap-2">
+            Mark As Paid <BadgeDollarSignIcon />
+          </div>
+        )}
+      </Button>
+    );
+  };
+
+  const MarkAsPaidDeliver = () => {
+    const [isPending, startTransition] = useTransition();
+    return (
+      <Button
+        className="w-full"
+        type="button"
+        disabled={isPending}
+        onClick={() =>
+          startTransition(async () => {
+            const res = await updateOrderToDelivered({
+              orderId: order.id,
+              userId: userId,
+            });
+            if (!res.success) {
+              toast.error(res.message);
+            } else {
+              toast.success(res.message);
+            }
+          })
+        }
+      >
+        {isPending ? (
+          <Loader className="animate-spin" />
+        ) : (
+          <div className="flex items-center justify-center gap-2">
+            Mark As Delivered <TruckIcon />
+          </div>
+        )}
+      </Button>
+    );
+  };
+
   return (
     <>
       <h1 className="py-4 text-2xl">#{order.id}</h1>
@@ -187,6 +259,11 @@ const OrderDetailTable = ({
                   </PayPalScriptProvider>
                 </div>
               )}
+
+              {isAdmin && !isPaid && paymentMethod === "CashOnDelivery" && (
+                <MarkAsPaidButton />
+              )}
+              {isAdmin && isPaid && !isDelivered && <MarkAsPaidDeliver />}
             </CardContent>
           </Card>
         </div>
