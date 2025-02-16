@@ -9,6 +9,7 @@ import { paypal } from "../paypal";
 import { PaymentResult, SalesDataType } from "@/types";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { DEFAULT_PAGE_SIZE } from "../constants";
 
 export async function createOrder() {
   try {
@@ -317,6 +318,64 @@ export async function getOrderSummary() {
       totalSales: totalSales._sum.totalPrice || 0, // Ensure totalSales is always a number
       salesData,
       latestSales,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatError(error),
+    };
+  }
+}
+
+// Get all orders
+export async function getAllOrders({
+  page,
+  size = DEFAULT_PAGE_SIZE,
+}: {
+  page: number;
+  size?: number;
+}) {
+  try {
+    const data = await prisma.order.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { name: true } } },
+      take: size,
+      skip: (page - 1) * size,
+    });
+
+    const total = await prisma.order.count();
+
+    return {
+      success: true,
+      data: {
+        data,
+        page,
+        size,
+        total,
+        numPages: Math.ceil(total / size),
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatError(error),
+    };
+  }
+}
+
+// Get all orders
+export async function deleteAnOrder(id: string) {
+  try {
+    await prisma.order.delete({
+      where: {
+        id: id,
+      },
+    });
+
+    revalidatePath("/admin/orders");
+    return {
+      success: true,
+      message: "The order is deleted successfully.",
     };
   } catch (error) {
     return {

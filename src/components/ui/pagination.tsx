@@ -40,7 +40,7 @@ const Pagination = ({
         size="lg"
         variant="outline"
         className="w-28"
-        disabled={Number(page) <= 0}
+        disabled={Number(page) <= 1}
       >
         Previous
       </Button>
