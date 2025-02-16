@@ -78,10 +78,6 @@ export const config = {
       trigger?: string; // trigger is optional
       token?: JWT; // token is optional
     }) {
-      console.log("tri", trigger);
-      console.log("user: ", user);
-      console.log("session ", session);
-      console.log("trigger ", trigger);
       if (trigger === "update") {
         session.user.name = user.name; // Modify session here
       }
@@ -154,7 +150,6 @@ export const config = {
       }
 
       if (session?.user.name && trigger === "update") {
-        console.log("session.user.name: ", session.user.name);
         token.name = session.user.name;
       }
 

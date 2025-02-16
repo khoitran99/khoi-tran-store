@@ -24,7 +24,6 @@ const OverviewPage = async () => {
     throw new Error("User is not authorized");
   }
   const summary = await getOrderSummary();
-  console.log(summary);
   return (
     <div className="space-y-2">
       <h1 className="h2-bold">Dashboard</h1>

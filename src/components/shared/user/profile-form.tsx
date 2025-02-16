@@ -46,7 +46,6 @@ const ProfileForm = () => {
             email: values.email,
           },
         };
-        console.log("newSession: ", newSession);
         await update(newSession);
         toast.success(res.message);
       }
