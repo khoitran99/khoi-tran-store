@@ -14,6 +14,8 @@ import { hashSync } from "bcrypt-ts-edge";
 import { formatError } from "../utils";
 import { PaymentMethod, ShippingAddress } from "@/types";
 import { DEFAULT_PAGE_SIZE } from "../constants";
+import { Prisma } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 
 // Sign in the user with credentials
 export async function signInWithCredentials(
@@ -220,6 +222,92 @@ export async function updateMyProfile({
     return {
       success: true,
       message: "User's profile is updated successfully",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatError(error),
+    };
+  }
+}
+
+export async function getAllUsers({
+  page,
+  size = DEFAULT_PAGE_SIZE,
+  query,
+}: {
+  page: number;
+  size?: number;
+  query?: string;
+}) {
+  try {
+    const whereClause: Prisma.UserWhereInput = {
+      AND: [
+        {
+          OR: [
+            {
+              name: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+            {
+              email: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+          ],
+        },
+        {
+          role: {
+            not: "admin",
+          },
+        },
+      ],
+    };
+    const data = await prisma.user.findMany({
+      where: whereClause,
+      take: size,
+      skip: (page - 1) * size,
+      include: {
+        _count: {
+          select: { order: true }, // Count total orders for each user
+        },
+      },
+    });
+    const total = await prisma.user.count({ where: whereClause });
+
+    return {
+      success: true,
+      data: {
+        data,
+        page,
+        size,
+        total,
+        numPages: Math.ceil(total / size),
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatError(error),
+    };
+  }
+}
+
+export async function deleteAnUser(id: string) {
+  try {
+    const existedUser = await prisma.user.findUnique({ where: { id } });
+    if (!existedUser) throw new Error("User not found");
+    if (existedUser.role === "admin")
+      throw new Error("Admin can not be deleted");
+
+    await prisma.user.delete({ where: { id } });
+    revalidatePath("/admin/users");
+    return {
+      success: true,
+      message: "The user is deleted successfully.",
     };
   } catch (error) {
     return {
